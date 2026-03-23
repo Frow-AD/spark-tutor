@@ -68,7 +68,13 @@ export function useTTS() {
   const speakWithWebSpeech = useCallback((text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return
     stopAll()
-    const clean = text.replace(/[#*_`~]/g, "").trim()
+    const clean = text
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/[#_~]/g, "")
+      .trim()
     if (!clean) return
     const utter = new SpeechSynthesisUtterance(clean)
     utter.voice = wsVoiceRef.current

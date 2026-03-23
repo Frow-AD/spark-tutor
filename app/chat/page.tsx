@@ -36,7 +36,7 @@ export default function ChatPage() {
     setMemory(m)
     const welcome = `Hi ${m.curated.name}! I'm Spark, your learning buddy! What would you like to explore today?`
     setMessages([{ role: "assistant", content: welcome }])
-    setTimeout(() => speak(welcome), 600)
+    // Don't auto-speak welcome — iOS blocks audio without user gesture first
   }, [router]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

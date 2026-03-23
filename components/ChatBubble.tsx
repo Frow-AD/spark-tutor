@@ -6,8 +6,21 @@ interface ChatBubbleProps {
   onSpeak?: () => void
 }
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")   // bold
+    .replace(/\*(.+?)\*/g, "$1")         // italic
+    .replace(/^#{1,6}\s+/gm, "")         // headers
+    .replace(/`([^`]+)`/g, "$1")          // inline code
+    .replace(/^\s*[-*+]\s+/gm, "")        // bullet points
+    .replace(/^\s*\d+\.\s+/gm, "")        // numbered lists
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+    .trim()
+}
+
 export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) {
   const isUser = role === "user"
+  const displayText = isUser ? content : stripMarkdown(content)
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4 group`}>
@@ -24,9 +37,8 @@ export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) 
               : "bg-white text-gray-800 shadow-md rounded-bl-sm"
           }`}
         >
-          {content}
+          {displayText}
         </div>
-        {/* Replay button for Spark messages */}
         {!isUser && onSpeak && (
           <button
             onClick={onSpeak}
