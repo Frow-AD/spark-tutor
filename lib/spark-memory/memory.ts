@@ -5,7 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import type { StudentMemory, CuratedProfile, SessionUpdatePayload, RawSessionLog } from "./types"
 
-const anthropic = new Anthropic() // uses ANTHROPIC_API_KEY from env
+const anthropic = new Anthropic()
 const MODEL = "claude-haiku-4-5"
 const RECURATE_EVERY = 5  // sessions
 
@@ -86,14 +86,11 @@ Return ONLY a valid JSON object — no markdown, no explanation — with this ex
 Only include fields inside "changed" that actually changed or were newly observed.
 `.trim()
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system,
+  const result = await anthropic.messages.create({
+    model: MODEL, max_tokens: 1024, system,
     messages: [{ role: "user", content: `Session transcript:\n\n${transcript}` }],
   })
-
-  const raw = response.content[0].type === "text" ? response.content[0].text : ""
+  const raw = result.content[0].type === "text" ? result.content[0].text : ""
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim()
   return JSON.parse(text) as SessionUpdatePayload
 }
@@ -196,15 +193,9 @@ Rules:
 `
 
   const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    system,
-    messages: [{
-      role: "user",
-      content: `Current profile:\n${JSON.stringify(memory.curated, null, 2)}\n\nRecent session notes (last ${recentLogs.length}):\n${logText}\n\nReturn the rewritten profile as JSON matching:\n${profileShape}`
-    }],
+    model: MODEL, max_tokens: 2048, system,
+    messages: [{ role: "user", content: `Current profile:\n${JSON.stringify(memory.curated, null, 2)}\n\nRecent session notes (last ${recentLogs.length}):\n${logText}\n\nReturn the rewritten profile as JSON matching:\n${profileShape}` }],
   })
-
   const raw = response.content[0].type === "text" ? response.content[0].text : ""
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim()
   const newProfile = JSON.parse(text) as CuratedProfile
