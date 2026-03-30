@@ -79,7 +79,7 @@ export default function ChatPage() {
         })
       }
 
-      // Speak the completed message
+      // Speak the completed message (strip VISUAL tags — handled in useTTS too, belt+suspenders)
       speak(assistantMessage)
 
     } catch (err) {

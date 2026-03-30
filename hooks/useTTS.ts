@@ -42,11 +42,12 @@ export function useTTS() {
   const speakWithElevenLabs = useCallback(async (text: string) => {
     stopAll()
     setSpeaking(true)
+    const cleanText = text.replace(/\[VISUAL:\s*\{[\s\S]*?\}\s*\]/g, "").trim()
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: cleanText }),
       })
       if (!res.ok) throw new Error(`TTS API ${res.status}`)
 
@@ -69,6 +70,7 @@ export function useTTS() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return
     stopAll()
     const clean = text
+      .replace(/\[VISUAL:\s*\{[\s\S]*?\}\s*\]/g, "")
       .replace(/\*\*(.+?)\*\*/g, "$1")
       .replace(/\*(.+?)\*/g, "$1")
       .replace(/^#{1,6}\s+/gm, "")

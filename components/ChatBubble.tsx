@@ -1,4 +1,5 @@
 // components/ChatBubble.tsx
+import VisualBlock, { type VisualData } from "./visuals/VisualBlock"
 
 interface ChatBubbleProps {
   role: "user" | "assistant"
@@ -8,24 +9,44 @@ interface ChatBubbleProps {
 
 function stripMarkdown(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, "$1")   // bold
-    .replace(/\*(.+?)\*/g, "$1")         // italic
-    .replace(/^#{1,6}\s+/gm, "")         // headers
-    .replace(/`([^`]+)`/g, "$1")          // inline code
-    .replace(/^\s*[-*+]\s+/gm, "")        // bullet points
-    .replace(/^\s*\d+\.\s+/gm, "")        // numbered lists
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .trim()
+}
+
+function parseVisual(content: string): { text: string; visual: VisualData | null } {
+  const match = content.match(/\[VISUAL:\s*(\{[\s\S]*?\})\s*\]/)  
+  if (!match) return { text: content, visual: null }
+  try {
+    const visual = JSON.parse(match[1]) as VisualData
+    const text = content.replace(match[0], "").trim()
+    return { text, visual }
+  } catch {
+    return { text: content.replace(match[0], "").trim(), visual: null }
+  }
 }
 
 export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) {
   const isUser = role === "user"
-  const displayText = isUser ? content : stripMarkdown(content)
+
+  let displayText = content
+  let visual: VisualData | null = null
+
+  if (!isUser) {
+    const parsed = parseVisual(content)
+    displayText = stripMarkdown(parsed.text)
+    visual = parsed.visual
+  }
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4 group`}>
       {!isUser && (
-        <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-xl mr-3 flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-xl mr-3 flex-shrink-0 mt-1">
           ✨
         </div>
       )}
@@ -39,6 +60,7 @@ export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) 
         >
           {displayText}
         </div>
+        {visual && <VisualBlock visual={visual} />}
         {!isUser && onSpeak && (
           <button
             onClick={onSpeak}
