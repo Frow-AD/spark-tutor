@@ -5,6 +5,8 @@ interface ChatBubbleProps {
   role: "user" | "assistant"
   content: string
   onSpeak?: () => void
+  onRate?: (rating: "up" | "down") => void
+  rating?: "up" | "down"
 }
 
 function stripMarkdown(text: string): string {
@@ -31,7 +33,7 @@ function parseVisual(content: string): { text: string; visual: VisualData | null
   }
 }
 
-export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) {
+export default function ChatBubble({ role, content, onSpeak, onRate, rating }: ChatBubbleProps) {
   const isUser = role === "user"
   let displayText = content
   let visual: VisualData | null = null
@@ -56,14 +58,44 @@ export default function ChatBubble({ role, content, onSpeak }: ChatBubbleProps) 
           {displayText}
         </div>
         {visual && <VisualBlock visual={visual} />}
-        {!isUser && onSpeak && (
-          <button
-            onClick={onSpeak}
-            className="self-start ml-1 px-3 py-1.5 text-sm rounded-xl bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-600 active:scale-95 transition-all"
-            title="Read aloud again"
-          >
-            🔈 replay
-          </button>
+        {!isUser && (onSpeak || onRate) && (
+          <div className="flex items-center gap-1 ml-1">
+            {onSpeak && (
+              <button
+                onClick={onSpeak}
+                className="px-3 py-1.5 text-sm rounded-xl bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-600 active:scale-95 transition-all"
+                title="Read aloud again"
+              >
+                🔈 replay
+              </button>
+            )}
+            {onRate && (
+              <>
+                <button
+                  onClick={() => onRate("up")}
+                  title="I liked this!"
+                  className={`px-2 py-1.5 text-base rounded-xl transition-all active:scale-95 ${
+                    rating === "up"
+                      ? "bg-green-100 text-green-600"
+                      : "bg-gray-100 text-gray-400 hover:bg-green-50 hover:text-green-500"
+                  }`}
+                >
+                  👍
+                </button>
+                <button
+                  onClick={() => onRate("down")}
+                  title="This didn't help"
+                  className={`px-2 py-1.5 text-base rounded-xl transition-all active:scale-95 ${
+                    rating === "down"
+                      ? "bg-red-100 text-red-500"
+                      : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-400"
+                  }`}
+                >
+                  👎
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
       {isUser && (

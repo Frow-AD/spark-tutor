@@ -21,6 +21,11 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false)
   const [ending, setEnding] = useState(false)
   const [storageWarning, setStorageWarning] = useState(false)
+  const [ratings, setRatings] = useState<Record<number, "up" | "down">>({})
+
+  const rateMessage = (index: number, rating: "up" | "down") => {
+    setRatings(prev => ({ ...prev, [index]: rating }))
+  }
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasInit = useRef(false)
   const { speak, stop, toggle, speaking, supported, enabled } = useTTS()
@@ -50,8 +55,28 @@ export default function ChatPage() {
     return () => window.removeEventListener("spark:storage-full", handler)
   }, [])
 
+  const [subjectPicked, setSubjectPicked] = useState(false)
+
+  const SUBJECTS = [
+    { label: "Math 🔢", value: "Math" },
+    { label: "Reading 📖", value: "Reading" },
+    { label: "Science 🔬", value: "Science" },
+    { label: "Spelling ✏️", value: "Spelling" },
+    { label: "Social Studies 🌍", value: "Social Studies" },
+    { label: "Surprise me! 🎲", value: "surprise" },
+  ]
+
+  const pickSubject = (subject: string) => {
+    setSubjectPicked(true)
+    const msg = subject === "surprise"
+      ? "Surprise me with something fun to learn!"
+      : `I want to practice ${subject} today.`
+    sendMessage(msg)
+  }
+
   const sendMessage = async (text: string) => {
     if (!memory || loading) return
+    setSubjectPicked(true)
 
     const newMessages: Message[] = [...messages, { role: "user", content: text }]
     setMessages(newMessages)
@@ -106,7 +131,13 @@ export default function ChatPage() {
 
     try {
       const transcript = messages
-        .map(m => `${m.role === "user" ? "Student" : "Spark"}: ${m.content}`)
+        .map((m, i) => {
+          const label = m.role === "user" ? "Student" : "Spark"
+          const ratingNote = m.role === "assistant" && ratings[i]
+            ? ratings[i] === "up" ? " [student liked this response]" : " [student didn't find this helpful]"
+            : ""
+          return `${label}${ratingNote}: ${m.content}`
+        })
         .join("\n\n")
 
       const response = await fetch("/api/summarize", {
@@ -138,7 +169,7 @@ export default function ChatPage() {
   )
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto">
+    <div className="flex flex-col h-[100dvh] max-w-2xl mx-auto">
       {/* Header */}
       <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -196,14 +227,34 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-2">
-        {messages.map((msg, i) => (
-          <ChatBubble
-            key={i}
-            role={msg.role}
-            content={msg.content}
-            onSpeak={msg.role === "assistant" ? () => speak(msg.content) : undefined}
-          />
-        ))}
+        {messages.map((msg, i) => {
+          const isLastMessage = i === messages.length - 1
+          const isStreaming = isLastMessage && loading
+          return (
+            <ChatBubble
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              onSpeak={msg.role === "assistant" ? () => speak(msg.content) : undefined}
+              onRate={msg.role === "assistant" && !isStreaming && msg.content ? (r) => rateMessage(i, r) : undefined}
+              rating={ratings[i]}
+            />
+          )
+        })}
+        {/* Subject picker — shown after welcome message until student picks or types */}
+        {!subjectPicked && messages.length === 1 && !loading && (
+          <div className="flex flex-wrap gap-2 pt-1 pb-2 px-1">
+            {SUBJECTS.map(s => (
+              <button
+                key={s.value}
+                onClick={() => pickSubject(s.value)}
+                className="bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 font-semibold rounded-2xl px-4 py-2 text-base transition-all active:scale-95 shadow-sm"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
         {loading && (
           <div className="flex justify-start mb-4">
             <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-xl mr-3">✨</div>
@@ -216,7 +267,11 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <ChatInput onSend={sendMessage} disabled={loading || ending} />
+      <ChatInput
+        onSend={sendMessage}
+        disabled={loading || ending}
+        showIDontKnow={messages.length > 1 && !loading && !ending}
+      />
     </div>
   )
 }
