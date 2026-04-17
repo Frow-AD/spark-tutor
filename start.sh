@@ -8,4 +8,10 @@ echo "Kokoro running on :5050"
 
 echo "Starting Spark..."
 cd "$(dirname "$0")"
+
+# Load .env.local so Next.js/Turbopack picks up ANTHROPIC_API_KEY reliably
+if [ -f .env.local ]; then
+  export $(grep -v '^#' .env.local | xargs)
+fi
+
 npm run dev

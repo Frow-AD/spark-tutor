@@ -18,7 +18,19 @@ function loadAll(): Record<string, StudentMemory> {
 
 function saveAll(all: Record<string, StudentMemory>) {
   if (typeof window === "undefined") return
-  localStorage.setItem(ALL_KEY, JSON.stringify(all))
+  try {
+    localStorage.setItem(ALL_KEY, JSON.stringify(all))
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.error("[spark] localStorage full — student progress could not be saved.")
+      // Surface a visible warning so parents/teachers notice
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("spark:storage-full"))
+      }
+    } else {
+      throw err
+    }
+  }
 }
 
 // ── student list ──────────────────────────────────────────────────────────────

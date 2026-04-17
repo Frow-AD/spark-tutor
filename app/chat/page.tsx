@@ -20,6 +20,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [storageWarning, setStorageWarning] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasInit = useRef(false)
   const { speak, stop, toggle, speaking, supported, enabled } = useTTS()
@@ -42,6 +43,12 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    const handler = () => setStorageWarning(true)
+    window.addEventListener("spark:storage-full", handler)
+    return () => window.removeEventListener("spark:storage-full", handler)
+  }, [])
 
   const sendMessage = async (text: string) => {
     if (!memory || loading) return
@@ -178,6 +185,14 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+
+      {/* Storage warning banner */}
+      {storageWarning && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-between text-sm text-red-700">
+          <span>⚠️ Storage is full — progress may not save. Ask a grown-up to free up space.</span>
+          <button onClick={() => setStorageWarning(false)} className="ml-2 font-bold">✕</button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-2">

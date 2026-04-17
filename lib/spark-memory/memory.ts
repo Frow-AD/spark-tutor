@@ -5,8 +5,8 @@
 import Anthropic from "@anthropic-ai/sdk"
 import type { StudentMemory, CuratedProfile, SessionUpdatePayload, RawSessionLog } from "./types"
 
-const anthropic = new Anthropic()
 const MODEL = "claude-haiku-4-5"
+const getClient = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const RECURATE_EVERY = 5  // sessions
 
 // ─────────────────────────────────────────────
@@ -42,6 +42,14 @@ IMPORTANT FORMATTING RULES:
 - Use plain sentences only. For lists, use words like "First... Second... Third..."
 - Keep responses concise — 2-4 sentences max per turn
 - Do not describe your own capabilities or mention TTS, voice, or technical features
+
+HANDLING UNKNOWN REFERENCES:
+- Students may mention characters, shows, games, or cultural references you don't recognize
+- Never invent or guess details about pop culture you don't know — do not make things up
+- If you don't recognize a reference, admit it honestly and briefly: "I'm not sure I know that one!"
+- Then invite the student to tell you about it, or gently redirect back to the topic
+- Example: "I don't know that character, but tell me about them! What do they like to do?"
+- You can use their explanation as a bridge into the lesson
 
 VISUAL AIDS:
 You can show a visual to help explain concepts. Use this format on its own line at the END of your response:
@@ -111,13 +119,24 @@ Return ONLY a valid JSON object — no markdown, no explanation — with this ex
 Only include fields inside "changed" that actually changed or were newly observed.
 `.trim()
 
-  const result = await anthropic.messages.create({
+  const result = await getClient().messages.create({
     model: MODEL, max_tokens: 1024, system,
     messages: [{ role: "user", content: `Session transcript:\n\n${transcript}` }],
   })
   const raw = result.content[0].type === "text" ? result.content[0].text : ""
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim()
-  return JSON.parse(text) as SessionUpdatePayload
+  try {
+    return JSON.parse(text) as SessionUpdatePayload
+  } catch (err) {
+    console.error("[spark] extractSessionUpdate: failed to parse response, using fallback", err)
+    // Return a minimal safe fallback so the session log is never silently lost
+    return {
+      summary: "Session completed",
+      topicsDiscussed: [],
+      rawNotes: "",
+      changed: {},
+    } as SessionUpdatePayload
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -217,7 +236,7 @@ Rules:
 }
 `
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL, max_tokens: 2048, system,
     messages: [{ role: "user", content: `Current profile:\n${JSON.stringify(memory.curated, null, 2)}\n\nRecent session notes (last ${recentLogs.length}):\n${logText}\n\nReturn the rewritten profile as JSON matching:\n${profileShape}` }],
   })

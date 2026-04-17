@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import "./globals.css"
+import ErrorBoundary from "@/components/ErrorBoundary"
 
 export const metadata: Metadata = {
   title: "Spark — Your Learning Buddy",
@@ -27,7 +28,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
       <body className="bg-gradient-to-br from-blue-50 to-yellow-50 min-h-screen">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   )
