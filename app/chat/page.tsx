@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import ChatBubble from "@/components/ChatBubble"
 import ChatInput from "@/components/ChatInput"
+import SessionEndCard from "@/components/SessionEndCard"
 import { getStudentMemory, setStudentMemory } from "@/lib/storage"
 import { migrateLegacyIfNeeded } from "@/lib/storage"
 import { useTTS } from "@/hooks/useTTS"
-import type { StudentMemory } from "@/lib/spark-memory/types"
+import type { StudentMemory, SessionRecap } from "@/lib/spark-memory/types"
 
 interface Message {
   role: "user" | "assistant"
@@ -20,12 +21,9 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [sessionEnded, setSessionEnded] = useState(false)
+  const [sessionRecap, setSessionRecap] = useState<SessionRecap | null>(null)
   const [storageWarning, setStorageWarning] = useState(false)
-  const [ratings, setRatings] = useState<Record<number, "up" | "down">>({})
-
-  const rateMessage = (index: number, rating: "up" | "down") => {
-    setRatings(prev => ({ ...prev, [index]: rating }))
-  }
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasInit = useRef(false)
   const { speak, stop, toggle, speaking, supported, enabled } = useTTS()
@@ -61,8 +59,7 @@ export default function ChatPage() {
     { label: "Math 🔢", value: "Math" },
     { label: "Reading 📖", value: "Reading" },
     { label: "Science 🔬", value: "Science" },
-    { label: "Spelling ✏️", value: "Spelling" },
-    { label: "Social Studies 🌍", value: "Social Studies" },
+{ label: "Social Studies 🌍", value: "Social Studies" },
     { label: "Surprise me! 🎲", value: "surprise" },
   ]
 
@@ -131,13 +128,7 @@ export default function ChatPage() {
 
     try {
       const transcript = messages
-        .map((m, i) => {
-          const label = m.role === "user" ? "Student" : "Spark"
-          const ratingNote = m.role === "assistant" && ratings[i]
-            ? ratings[i] === "up" ? " [student liked this response]" : " [student didn't find this helpful]"
-            : ""
-          return `${label}${ratingNote}: ${m.content}`
-        })
+        .map(m => `${m.role === "user" ? "Student" : "Spark"}: ${m.content}`)
         .join("\n\n")
 
       const response = await fetch("/api/summarize", {
@@ -147,19 +138,31 @@ export default function ChatPage() {
       })
 
       if (response.ok) {
-        const updatedMemory: StudentMemory = await response.json()
+        const { memory: updatedMemory, recap }: { memory: StudentMemory; recap: SessionRecap } = await response.json()
         setStudentMemory(updatedMemory)
         setMemory(updatedMemory)
+        setSessionRecap(recap)
       }
 
-      const farewell = "Great session today! 🎉 I've saved what we learned. See you next time! Come back anytime you want to learn something new! ⭐"
+      const farewell = `Great session today! 🎉 I had so much fun learning with you, ${memory.curated.name}! See you next time! ⭐`
       setMessages(prev => [...prev, { role: "assistant", content: farewell }])
       speak(farewell)
+      setSessionEnded(true)
     } catch (err) {
       console.error(err)
     } finally {
       setEnding(false)
     }
+  }
+
+  const saveParentInstructions = (instructions: string) => {
+    if (!memory) return
+    const updated: StudentMemory = {
+      ...memory,
+      curated: { ...memory.curated, parentInstructions: instructions },
+    }
+    setStudentMemory(updated)
+    setMemory(updated)
   }
 
   if (!memory) return (
@@ -227,20 +230,14 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-2">
-        {messages.map((msg, i) => {
-          const isLastMessage = i === messages.length - 1
-          const isStreaming = isLastMessage && loading
-          return (
-            <ChatBubble
-              key={i}
-              role={msg.role}
-              content={msg.content}
-              onSpeak={msg.role === "assistant" ? () => speak(msg.content) : undefined}
-              onRate={msg.role === "assistant" && !isStreaming && msg.content ? (r) => rateMessage(i, r) : undefined}
-              rating={ratings[i]}
-            />
-          )
-        })}
+        {messages.map((msg, i) => (
+          <ChatBubble
+            key={i}
+            role={msg.role}
+            content={msg.content}
+            onSpeak={msg.role === "assistant" ? () => speak(msg.content) : undefined}
+          />
+        ))}
         {/* Subject picker — shown after welcome message until student picks or types */}
         {!subjectPicked && messages.length === 1 && !loading && (
           <div className="flex flex-wrap gap-2 pt-1 pb-2 px-1">
@@ -263,15 +260,25 @@ export default function ChatPage() {
             </div>
           </div>
         )}
+        {sessionEnded && sessionRecap && (
+          <SessionEndCard
+            childName={memory.curated.name}
+            recap={sessionRecap}
+            existingInstructions={memory.curated.parentInstructions}
+            onSaveInstructions={saveParentInstructions}
+          />
+        )}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <ChatInput
-        onSend={sendMessage}
-        disabled={loading || ending}
-        showIDontKnow={messages.length > 1 && !loading && !ending}
-      />
+      {!sessionEnded && (
+        <ChatInput
+          onSend={sendMessage}
+          disabled={loading || ending}
+          showIDontKnow={messages.length > 1 && !loading && !ending}
+        />
+      )}
     </div>
   )
 }

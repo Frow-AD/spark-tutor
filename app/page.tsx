@@ -74,10 +74,13 @@ export default function HomePage() {
           const gradient = GRADE_COLORS[p.grade] ?? GRADE_COLORS[1]
           const topicCount = Object.keys(p.topics).length
           return (
-            <button
+            <div
               key={id}
               onClick={() => openStudent(id)}
-              className="w-full text-left bg-white rounded-3xl shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 overflow-hidden"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && openStudent(id)}
+              className="w-full text-left bg-white rounded-3xl shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 overflow-hidden cursor-pointer"
             >
               <div className="flex items-center gap-4 p-5">
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-3xl flex-shrink-0`}>
@@ -109,7 +112,7 @@ export default function HomePage() {
                   </button>
                 </div>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>

@@ -3,7 +3,7 @@
 // Import this in your API routes.
 
 import Anthropic from "@anthropic-ai/sdk"
-import type { StudentMemory, CuratedProfile, SessionUpdatePayload, RawSessionLog } from "./types"
+import type { StudentMemory, CuratedProfile, SessionUpdatePayload, RawSessionLog, SessionRecap } from "./types"
 
 const MODEL = "claude-haiku-4-5"
 const getClient = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -95,6 +95,8 @@ ${recentSessions || "This is the first session"}
 BEHAVIORAL NOTES
 ${frustration}
 ${wins}
+
+${p.parentInstructions ? `PARENT INSTRUCTIONS (follow these for this session):\n${p.parentInstructions}` : ""}
 `.trim()
 }
 
@@ -110,6 +112,7 @@ Return ONLY a valid JSON object — no markdown, no explanation — with this ex
   "summary": "one sentence describing what happened this session",
   "topicsDiscussed": ["topic1", "topic2"],
   "rawNotes": "free-form observations: learning style signals, emotional tone, breakthroughs, struggles, anything worth remembering",
+  "parentNote": "1-2 friendly sentences written directly to the parent summarizing what their child worked on and how it went — warm, specific, no jargon",
   "changed": {
     "topics": { "topic_name": { "proficiency": "emerging|developing|strong", "notes": "brief evidence" } },
     "interests": ["any new interests mentioned"],
@@ -139,6 +142,7 @@ Only include fields inside "changed" that actually changed or were newly observe
       summary: "Session completed",
       topicsDiscussed: [],
       rawNotes: "",
+      parentNote: "Your child completed a session with Spark today!",
       changed: {},
     } as SessionUpdatePayload
   }
@@ -261,7 +265,7 @@ Rules:
 export async function processEndOfSession(
   transcript: string,
   memory: StudentMemory
-): Promise<StudentMemory> {
+): Promise<{ memory: StudentMemory; recap: SessionRecap }> {
   // 1. Extract update from transcript
   const update = await extractSessionUpdate(transcript)
 
@@ -274,5 +278,11 @@ export async function processEndOfSession(
     updated.curated = await recurateProfile(updated)
   }
 
-  return updated
+  const recap: SessionRecap = {
+    summary: update.summary,
+    topicsCovered: update.topicsDiscussed,
+    parentNote: update.parentNote,
+  }
+
+  return { memory: updated, recap }
 }

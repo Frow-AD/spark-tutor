@@ -36,6 +36,13 @@ export type CuratedProfile = {
   flags: Flags
   sessionCount: number
   lastCuratedAt: number  // sessionCount value at last recuration
+  parentInstructions?: string
+}
+
+export type SessionRecap = {
+  summary: string
+  topicsCovered: string[]
+  parentNote: string  // friendly 1-2 sentence note written for parents
 }
 
 export type StudentMemory = {
@@ -63,6 +70,7 @@ export type SessionUpdatePayload = {
   summary: string
   topicsDiscussed: string[]
   rawNotes: string
+  parentNote: string  // friendly note for the parent card
   changed: {
     topics?: Record<string, Partial<TopicEntry>>
     interests?: string[]
