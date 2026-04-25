@@ -23,7 +23,9 @@ export default function ChatPage() {
   const [ending, setEnding] = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
   const [sessionRecap, setSessionRecap] = useState<SessionRecap | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [storageWarning, setStorageWarning] = useState(false)
+  const iDontKnowCount = useRef(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasInit = useRef(false)
   const { speak, stop, toggle, speaking, supported, enabled } = useTTS()
@@ -74,6 +76,7 @@ export default function ChatPage() {
   const sendMessage = async (text: string) => {
     if (!memory || loading) return
     setSubjectPicked(true)
+    if (text === "I don't know") iDontKnowCount.current += 1
 
     const newMessages: Message[] = [...messages, { role: "user", content: text }]
     setMessages(newMessages)
@@ -131,17 +134,24 @@ export default function ChatPage() {
         .map(m => `${m.role === "user" ? "Student" : "Spark"}: ${m.content}`)
         .join("\n\n")
 
+      const userMessageCount = messages.filter(m => m.role === "user").length
       const response = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, memory }),
+        body: JSON.stringify({
+          transcript,
+          memory,
+          messageCount: userMessageCount,
+          iDontKnowCount: iDontKnowCount.current,
+        }),
       })
 
       if (response.ok) {
-        const { memory: updatedMemory, recap }: { memory: StudentMemory; recap: SessionRecap } = await response.json()
+        const { memory: updatedMemory, recap, sessionId: sid }: { memory: StudentMemory; recap: SessionRecap; sessionId: string | null } = await response.json()
         setStudentMemory(updatedMemory)
         setMemory(updatedMemory)
         setSessionRecap(recap)
+        setSessionId(sid)
       }
 
       const farewell = `Great session today! 🎉 I had so much fun learning with you, ${memory.curated.name}! See you next time! ⭐`
@@ -264,6 +274,7 @@ export default function ChatPage() {
           <SessionEndCard
             childName={memory.curated.name}
             recap={sessionRecap}
+            sessionId={sessionId}
             existingInstructions={memory.curated.parentInstructions}
             onSaveInstructions={saveParentInstructions}
           />

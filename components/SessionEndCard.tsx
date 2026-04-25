@@ -6,14 +6,25 @@ import type { SessionRecap } from "@/lib/spark-memory/types"
 interface SessionEndCardProps {
   childName: string
   recap: SessionRecap
+  sessionId: string | null
   existingInstructions?: string
   onSaveInstructions: (instructions: string) => void
 }
 
-export default function SessionEndCard({ childName, recap, existingInstructions, onSaveInstructions }: SessionEndCardProps) {
+export default function SessionEndCard({ childName, recap, sessionId, existingInstructions, onSaveInstructions }: SessionEndCardProps) {
   const [rating, setRating] = useState<"up" | "down" | null>(null)
   const [instructions, setInstructions] = useState(existingInstructions ?? "")
   const [saved, setSaved] = useState(false)
+
+  const handleRating = async (r: "up" | "down") => {
+    setRating(r)
+    if (!sessionId) return
+    await fetch("/api/session-rating", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, rating: r }),
+    })
+  }
 
   const handleSave = () => {
     onSaveInstructions(instructions)
@@ -50,7 +61,7 @@ export default function SessionEndCard({ childName, recap, existingInstructions,
         <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2">How did Spark do?</p>
         <div className="flex gap-2">
           <button
-            onClick={() => setRating("up")}
+            onClick={() => handleRating("up")}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold transition-all active:scale-95 ${
               rating === "up"
                 ? "bg-green-100 text-green-700 border-2 border-green-300"
@@ -60,7 +71,7 @@ export default function SessionEndCard({ childName, recap, existingInstructions,
             👍 Great session
           </button>
           <button
-            onClick={() => setRating("down")}
+            onClick={() => handleRating("down")}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold transition-all active:scale-95 ${
               rating === "down"
                 ? "bg-red-100 text-red-600 border-2 border-red-300"
